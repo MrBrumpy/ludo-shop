@@ -121,6 +121,15 @@ class FixturesCheckCommand extends Command
         $byUser = [];
         foreach ($addresses as $address) {
             $userId = $address->getUser()->getId();
+
+            if (null === $userId) {
+                $output->writeln(
+                    '  <error>ERREUR</error> Une adresse est associée à un utilisateur sans identifiant.'
+                );
+                ++$this->errorCount;
+                continue;
+            }
+
             $byUser[$userId][] = $address;
         }
 
