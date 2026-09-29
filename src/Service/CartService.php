@@ -109,7 +109,7 @@ class CartService
     {
         $cart = $user->getCart();
         if (null === $cart) {
-        return 0;
+            return 0;
         }
 
         return $this->getItemCount($cart);
