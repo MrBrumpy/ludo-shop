@@ -37,6 +37,9 @@ jobs:
             - name: Install Composer dependencies
               run: composer install --no-progress --prefer-dist
 
+            - name: Build Sass
+              run: php bin/console sass:build
+
             - name: Lint YAML config
               run: php bin/console lint:yaml config
 
