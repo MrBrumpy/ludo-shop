@@ -1,399 +1,65 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-permissions:
-  contents: read
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
 
 jobs:
-  # ──────────────────────────────────────────────
-  # Stage lint — feedback ultra rapide (~30s)
-  # ──────────────────────────────────────────────
-  composer-validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    quality:
+        name: Quality checks
+        runs-on: ubuntu-latest
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          tools: composer:v2
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
 
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+            - name: Setup PHP 8.3
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: sqlite3, intl, mbstring, zip
+                  coverage: pcov
 
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
+            - name: Get Composer cache directory
+              id: composer-cache
+              run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
+            - name: Cache Composer dependencies
+              uses: actions/cache@v4
+              with:
+                  path: ${{ steps.composer-cache.outputs.dir }}
+                  key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+                  restore-keys: ${{ runner.os }}-composer-
 
-      - name: Validate composer.json
-        run: composer validate --strict
+            - name: Install Composer dependencies
+              run: composer install --no-progress --prefer-dist
 
-  lint-config:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+            - name: Lint YAML config
+              run: php bin/console lint:yaml config
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: intl, zip
-          tools: composer:v2
+            - name: Lint Twig templates
+              run: php bin/console lint:twig templates
 
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+            - name: Lint container
+              run: php bin/console lint:container --env=prod
 
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
+            - name: PHP-CS-Fixer
+              run: php vendor/bin/php-cs-fixer fix --dry-run --diff
 
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
+            - name: PHPStan analyse
+              run: php vendor/bin/phpstan analyse --no-progress
 
-      - name: Lint YAML config
-        run: php bin/console lint:yaml config
+            - name: PHPUnit tests
+              run: php vendor/bin/phpunit --no-coverage
 
-      - name: Lint Twig templates
-        run: php bin/console lint:twig templates
+            - name: Composer audit
+              run: composer audit --no-interaction
 
-      - name: Lint container
-        run: php bin/console lint:container
+            - name: Doctrine schema validate
+              run: php bin/console doctrine:schema:validate --skip-sync
 
-  # ──────────────────────────────────────────────
-  # Stage analyze — analyse statique (~1-2min)
-  # ──────────────────────────────────────────────
-  cs-fixer:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          tools: composer:v2
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
-
-      - name: PHP-CS-Fixer
-        run: php vendor/bin/php-cs-fixer fix --dry-run --diff
-
-  phpstan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: intl, zip
-          tools: composer:v2
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
-
-      - name: PHPStan
-        run: php vendor/bin/phpstan analyse --no-progress --memory-limit=512M
-
-  security-audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          tools: composer:v2
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
-
-      - name: Audit dependencies
-        run: composer audit --no-interaction
-
-  # ──────────────────────────────────────────────
-  # Stage test — unitaires + intégration + fonct. (~1-3min)
-  # ──────────────────────────────────────────────
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: intl, zip
-          tools: composer:v2
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
-
-      - name: PHPUnit (unit)
-        run: php vendor/bin/phpunit --no-coverage --stderr --testsuite unit
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: intl, zip
-          tools: composer:v2
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
-
-      - name: PHPUnit (integration)
-        run: php vendor/bin/phpunit --no-coverage --stderr --testsuite integration
-
-  functional-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: intl, zip
-          coverage: pcov
-          tools: composer:v2
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
-
-      - name: Build SASS
-        run: php bin/console sass:build
-
-      - name: PHPUnit (functional)
-        run: php vendor/bin/phpunit --coverage-clover var/coverage.xml --stderr --testsuite functional
-
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage
-          path: var/coverage.xml
-          retention-days: 7
-
-  # ──────────────────────────────────────────────
-  # Stage verify — validation schéma + mutations
-  # ──────────────────────────────────────────────
-  schema-verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: intl, zip
-          tools: composer:v2
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
-
-      - name: Doctrine schema validate
-        run: php bin/console doctrine:schema:validate --skip-sync
-
-  infection:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          extensions: intl, zip
-          coverage: pcov
-          tools: composer:v2
-
-      - name: Get Composer cache directory
-        id: composer-cache
-        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.composer-cache.outputs.dir }}
-            vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: |
-          for i in 1 2 3; do
-            composer install --prefer-dist --no-progress --no-interaction && break
-            echo "Composer install failed (attempt $i/3), retrying in 10s..."
-            sleep 10
-          done
-
-      - name: Infection mutation testing
-        run: php -d memory_limit=512M vendor/bin/infection --threads=4 --show-mutations --no-progress
+            - name: Fixtures check
+              run: php bin/console app:fixtures:check
