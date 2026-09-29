@@ -64,5 +64,8 @@ jobs:
             - name: Doctrine schema validate
               run: php bin/console doctrine:schema:validate --skip-sync
 
+            - name: Create schema
+              run: php bin/console doctrine:schema:create
+
             - name: Fixtures check
               run: php bin/console app:fixtures:check
