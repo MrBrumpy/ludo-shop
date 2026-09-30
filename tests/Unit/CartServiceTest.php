@@ -90,6 +90,4 @@ class CartServiceTest extends TestCase
 
         $this->assertSame(75.00, $this->service->getTotal($cart));
     }
-
-
 }
