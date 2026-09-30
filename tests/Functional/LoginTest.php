@@ -16,21 +16,21 @@ class LoginTest extends FunctionalTestCase
 
     public function testLogoutRedirectsToHome(): void
     {
-         $crawler = $this->client->request('GET', '/login');
-         $csrfToken = $crawler->filter('input[name="_csrf_token"]')->attr('value');
+        $crawler = $this->client->request('GET', '/login');
+        $csrfToken = $crawler->filter('input[name="_csrf_token"]')->attr('value');
 
-         $this->client->request('POST', '/login', [
-             '_username' => 'client@example.com',
-             '_password' => 'Client123!',
-             '_csrf_token' => $csrfToken,
-         ]);
+        $this->client->request('POST', '/login', [
+            '_username' => 'client@example.com',
+            '_password' => 'Client123!',
+            '_csrf_token' => $csrfToken,
+        ]);
 
-         $this->client->request('GET', '/logout');
+        $this->client->request('GET', '/logout');
 
-         $this->assertResponseRedirects();
-         $this->client->followRedirect();
-         $this->assertRouteSame('app_home');
-     }
+        $this->assertResponseRedirects();
+        $this->client->followRedirect();
+        $this->assertRouteSame('app_home');
+    }
 
     public function testSuccessfulLoginRedirectsToCatalog(): void
     {
