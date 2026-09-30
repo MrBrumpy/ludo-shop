@@ -66,8 +66,8 @@ class CartTest extends FunctionalTestCase
         $this->assertResponseRedirects();
         $this->client->followRedirect();
         $this->assertSelectorTextContains('body', 'Votre panier est vide.');
-
     }
+
     public function testCartShowsCorrectTotal(): void
     {
         $this->login('client@example.com');
