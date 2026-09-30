@@ -90,4 +90,21 @@ class CartServiceTest extends TestCase
 
         $this->assertSame(75.00, $this->service->getTotal($cart));
     }
+
+    public function testPromotionalPriceIsUsed(): void
+    {
+        $product = new Product();
+        $product->setPrice(50.00);
+        $product->setPromoPrice(35.00);
+        $product->setPromoStartsAt(new \DateTimeImmutable('2026-01-01'));
+        $product->setPromoEndsAt(new \DateTimeImmutable('2099-01-01'));
+        $product->setStock(10);
+
+        $user = $this->createStub(User::class);
+        $cart = new Cart($user);
+
+        $this->service->addProduct($cart, $product, 2);
+
+        $this->assertSame(70.00, $this->service->getTotal($cart));
+    }
 }
