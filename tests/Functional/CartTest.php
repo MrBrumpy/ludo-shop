@@ -36,8 +36,8 @@ class CartTest extends FunctionalTestCase
             'quantity' => 1,
         ]);
 
-        $this->client->request('POST', '/cart/add/'.$product->getId(), [
-            'quantity' => 1,
+        $this->client->request('POST', '/cart/items/1/update', [
+            'quantity' => 3,
         ]);
 
         $this->client->request('GET', '/cart');
@@ -45,7 +45,7 @@ class CartTest extends FunctionalTestCase
         $crawler = $this->client->getCrawler();
 
         $this->assertSame(
-            '2',
+            '3',
             $crawler->filter('input[aria-label="Quantité de Catan"]')->attr('value')
         );
     }
