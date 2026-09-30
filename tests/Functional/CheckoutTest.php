@@ -26,7 +26,7 @@ class CheckoutTest extends FunctionalTestCase
 
         // Ajouter un produit au panier
         $product = $this->repository(Product::class)->findOneBy([
-            'reference' => 'CAT-001'
+            'reference' => 'CAT-001',
         ]);
         $this->assertNotNull($product);
 
@@ -52,7 +52,7 @@ class CheckoutTest extends FunctionalTestCase
 
         // Récupérer la commande créée
         $order = $this->repository(Order::class)->findOneBy([
-            'user' => $user
+            'user' => $user,
         ]);
         $this->assertNotNull($order);
 
