@@ -89,7 +89,6 @@ class PromotionServiceTest extends TestCase
         $this->assertTrue($this->service->isOnPromotion($product, new \DateTimeImmutable('2026-08-31 00:00:00')));
     }
 
-
     private function createProduct(float $price, ?float $promoPrice = null): Product
     {
         $product = new Product();
